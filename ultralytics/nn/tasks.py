@@ -15,6 +15,7 @@ import torch
 from torch import nn
 
 from ultralytics.nn.autobackend import check_class_names
+from ultralytics.nn.extra_modules import GCConv
 from ultralytics.nn.modules import (
     AIFI,
     C1,
@@ -241,7 +242,7 @@ class BaseModel(torch.nn.Module):
             LOGGER.info(f"{sum(dt):10.2f} {'-':>10s} {'-':>10s}  Total")
 
     def fuse(self, verbose=True, imgsz=640):
-        """Fuse Conv/ConvTranspose and BatchNorm layers, and reparameterize RepConv/RepVGGDW for improved efficiency.
+        """Fuse Conv/ConvTranspose and BatchNorm layers, and reparameterize GCConv/RepConv/RepVGGDW for inference.
 
         Args:
             verbose (bool): Whether to print model information after fusion.
@@ -252,11 +253,13 @@ class BaseModel(torch.nn.Module):
         """
         # BN folds into a QAT conv exactly, its per-channel weight range scales along; merged branches and transposed
         # convs have no such rescale for their ranges, so they stay as trained
-        skip = (Conv2, ConvTranspose, RepConv, RepVGGDW) if is_qat(self) else ()
+        skip = (Conv2, ConvTranspose, GCConv, RepConv, RepVGGDW) if is_qat(self) else ()
         if not self.is_fused():
             for m in self.model.modules():
                 if isinstance(m, skip):
                     continue
+                if isinstance(m, GCConv):
+                    m.switch_to_deploy()
                 if isinstance(m, (Conv, Conv2, DWConv)) and hasattr(m, "bn"):
                     if isinstance(m, Conv2):
                         m.fuse_convs()
@@ -283,6 +286,7 @@ class BaseModel(torch.nn.Module):
         """Return True once fuse() has nothing left to do."""
         return not any(
             (isinstance(m, (Conv, ConvTranspose)) and hasattr(m, "bn"))
+            or (isinstance(m, GCConv) and hasattr(m, "branches"))
             or (isinstance(m, (RepConv, RepVGGDW)) and hasattr(m, "conv1"))
             or (isinstance(m, Detect) and m.cv2 is not None and getattr(m, "one2one_cv2", None) is not None)
             for m in self.modules()
@@ -1706,6 +1710,7 @@ class _SafeLoad:
                 if name not in cls._registry and (
                     module in {"torch.nn.modules", "ultralytics.nn.modules", "ultralytics.nn.tasks"}
                     or module.rpartition(".")[0] in {"torch.nn.modules", "ultralytics.nn.modules"}
+                    or name == f"{GCConv.__module__}.{GCConv.__name__}"
                     or module in {"ultralytics.utils.loss", "ultralytics.utils.tal"}
                 ):
                     obj = getattr(importlib.import_module(module), attr, None)
@@ -2082,6 +2087,7 @@ def parse_model(d, ch, verbose=True):
         {
             Classify,
             Conv,
+            GCConv,
             ConvTranspose,
             GhostConv,
             Bottleneck,

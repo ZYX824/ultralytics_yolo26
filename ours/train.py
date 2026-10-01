@@ -9,7 +9,7 @@ from ultralytics import YOLO  # noqa: E402
 
 if __name__ == "__main__":
     # 模型yaml路径
-    model_yaml_path = ROOT / "ultralytics" / "cfg" / "models" / "26" / "yolo26.yaml"
+    model_yaml_path = ROOT / "ultralytics" / "cfg" / "models" / "26" / "yolo26-GCConv.yaml"
     # 提取yaml文件名，去掉后缀，拼接前缀 bee_
     yaml_stem = model_yaml_path.stem
     run_name = f"bee_{yaml_stem}"
