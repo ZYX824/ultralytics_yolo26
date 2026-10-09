@@ -211,3 +211,5 @@ results.csv
 fuzz-sources/
 fuzz-datasets/
 fuzz-models/
+
+/ours/sam2/
