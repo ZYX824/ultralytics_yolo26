@@ -211,3 +211,8 @@ results.csv
 fuzz-sources/
 fuzz-datasets/
 fuzz-models/
+
+/ours/sam2/
+
+# Local Git worktrees
+/.worktrees/
