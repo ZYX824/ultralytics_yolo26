@@ -118,6 +118,9 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
+!.env.example
+!.env.*.example
 .venv
 .idea
 env/
@@ -150,6 +153,11 @@ dmypy.json
 
 # datasets and projects (ignore /datasets dir at root only to allow for docs/en/datasets dir)
 /datasets
+# Local training datasets and downloaded inference samples (not source code)
+/ours/datasets/
+/ours/extraction/samples/
+# Ultralytics dataset label caches
+labels.cache
 runs/
 wandb/
 .DS_Store
@@ -207,6 +215,7 @@ results.csv
 
 # CI test asset cache
 .ultralytics_cache/
+.ruff_cache/
 
 # Fuzz media and datasets generated beside the weights dir, which is the checkout root outside CI
 fuzz-sources/
