@@ -1,15 +1,19 @@
 # 后端调用接口
 
-完整流程：原始图像与几何信息 → 双 YOLO 推理 → 框合并 → SAM → 地面投影 → 尺寸结果。
+本页描述原有单图上传接口。批量 Demo 的服务地址、后端对接步骤、任务查询和结果字段
+统一见本目录 [README.md](README.md)。
+
+默认流程：原始图像 → 双 YOLO 推理 → 框合并 → 目标检测结果。
+显式设置 `with_sam=true` 时，继续执行 SAM 分割、地面投影和尺寸测量。
 
 ## 启动
 
 ```powershell
 # 本地 4060，复现样图的五个目标，监听所有网卡
-& 'D:\Program_Files\Anaconda\envs\YOLOv26\python.exe' -m ours.service.serve --host 0.0.0.0 --port 8000 --device cuda:0 --imgsz 1280 --conf 0.1
+& 'D:\Program_Files\Anaconda\envs\YOLOv26\python.exe' -m ours.service.serve --host 0.0.0.0 --port 9000 --device cuda:0 --imgsz 1280 --conf 0.1
 ```
 
-服务器使用同样命令，将解释器换为服务器 CUDA 环境的 `python`。`serve` 默认 `imgsz=1280、conf=0.25`，本次验证使用 `conf=0.1`，检测阈值影响误检/漏检，按业务评估后调整。一个进程常驻两个 YOLO 和 SAM，限制同时处理一张图。仅运行一个 worker。
+服务器使用同样命令，将解释器换为服务器 CUDA 环境的 `python`。`serve` 默认 `imgsz=1280、conf=0.25`，本次验证使用 `conf=0.1`，检测阈值影响误检/漏检，按业务评估后调整。一个进程常驻两个 YOLO，按请求显式启用 SAM，限制同时处理一张图。仅运行一个 worker。
 
 地址用实际主机 IP 替换 `127.0.0.1`：
 
@@ -32,7 +36,7 @@
 | --- | --- | --- | --- |
 | `image` | 文件 | 必填 | 原始图像，保留 EXIF/XMP；最大 32 MB、2500 万像素 |
 | `info` | JSON 字符串 | `{}` | 此图的几何信息，可直接使用提取报告的 `images[0]`，最大 64 KB |
-| `with_sam` | 布尔值 | `true` | `false` 仅运行双 YOLO，不输出尺寸 |
+| `with_sam` | 布尔值 | `false` | 可省略，仅运行双 YOLO；传 `true` 才启用分割和尺寸测量 |
 
 图像内含必要元数据时，只需上传 `image`。传入的非空几何字段优先于图像元数据；后端数据须与当前图像匹配。图像宽高、高度和 GSD 等派生字段不接受覆盖，高度始终由当前测距和俯仰角重新计算。
 
@@ -73,12 +77,12 @@
 ```python
 import requests
 
-base_url = 'http://127.0.0.1:8000'
+base_url = 'http://127.0.0.1:9000'
 with open('image.jpeg', 'rb') as image:
     response = requests.post(
         base_url + '/predict',
         files={'image': ('image.jpeg', image, 'image/jpeg')},
-        data={'info': '{}', 'with_sam': 'true'},
+        data={'info': '{}', 'with_sam': 'true'},  # 此示例显式启用测量；仅检测时省略 with_sam。
         timeout=300,
     )
 response.raise_for_status()

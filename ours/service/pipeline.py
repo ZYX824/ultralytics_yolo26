@@ -17,6 +17,7 @@ import torch
 from PIL import Image
 
 from ours.extraction.extract_gsd import CSV_FIELDS, estimate_gsd, read_metadata
+from .errors import GPUOutOfMemory, ServiceBusy
 from .measurement import measure_mask, measurement_method
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -36,14 +37,6 @@ DERIVED_FIELDS = {
     "gsd_m_per_pixel", "status", "warnings", "error",
 }
 INFO_FIELDS = set(CSV_FIELDS) - DERIVED_FIELDS
-
-
-class GPUOutOfMemory(RuntimeError):
-    """Stop local inference after OOM; use the same configuration on a server."""
-
-
-class ServiceBusy(RuntimeError):
-    """Bound the active + waiting pipeline requests."""
 
 
 @dataclass

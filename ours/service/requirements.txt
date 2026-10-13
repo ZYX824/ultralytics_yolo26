@@ -2,6 +2,9 @@
 fastapi>=0.110
 uvicorn>=0.27
 python-multipart>=0.0.9
+pydantic>=2.0
+requests>=2.23
 # SAM dependencies, same as the existing ours/sam2 checkout.
 hydra-core>=1.3.2
-iopath>=0.1.9
+iopath>=0.1.10
+tqdm>=4.66.1

@@ -122,7 +122,7 @@ class ServiceTests(unittest.TestCase):
         pipeline = self.fake_pipeline()
         client = TestClient(create_app(pipeline))
         response = client.post("/predict", files={"image": ("image.png", self.source.read_bytes(), "image/png")},
-                               data={"info": json.dumps({"center_range_m": 100, "gimbal_pitch_deg": -30,
+                               data={"with_sam": "true", "info": json.dumps({"center_range_m": 100, "gimbal_pitch_deg": -30,
                                                          "gimbal_roll_deg": 0, "gimbal_yaw_deg": 0,
                                                          "calibrated_intrinsics": {"fx_px": 1000, "fy_px": 1000,
                                                                                    "cx_px": 19.5, "cy_px": 14.5},
@@ -150,6 +150,22 @@ class ServiceTests(unittest.TestCase):
             oom = client.post("/predict", files={"image": ("x.png", self.source.read_bytes())})
             self.assertEqual(oom.status_code, 503)
             self.assertEqual(oom.json()["detail"]["code"], "gpu_oom")
+
+    def test_http_defaults_to_detection_without_loading_sam(self):
+        pipeline = self.fake_pipeline()
+        pipeline.predictor = None
+        with TestClient(create_app(pipeline)) as client, patch.object(pipeline, "_load") as load:
+            response = client.post("/predict", files={"image": ("image.png", self.source.read_bytes())})
+            self.assertEqual(response.status_code, 200, response.text)
+            load.assert_called_once_with(False)
+            report = response.json()
+            self.assertFalse(report["with_sam"])
+            self.assertEqual(len(report["detections"]), 2)
+            self.assertEqual(report["measurement_status"], "sam_disabled")
+            self.assertIsNone(report["union_measurement"])
+            self.assertNotIn("sam_overlay", report["artifact_urls"])
+            self.assertTrue(all("mask_url" not in detection for detection in report["detections"]))
+            self.assertEqual(client.get(report["artifact_urls"]["combined_yolo"]).status_code, 200)
 
 
 if __name__ == "__main__":
