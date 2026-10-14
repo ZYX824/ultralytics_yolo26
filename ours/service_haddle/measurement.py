@@ -11,7 +11,8 @@ import math
 import cv2
 import numpy as np
 
-from ours.extraction.extract_gsd import number, positive
+import config  # noqa: F401  # 把项目根目录加入导入路径
+from ours.extraction.extract_gsd import extract_image, format_gsd_message, number, positive
 
 
 class GeometryUnavailable(ValueError):
@@ -127,6 +128,31 @@ def measure_mask(mask, geometry, contours=None):
     except GeometryUnavailable as exc:
         result.update(status=exc.status, reason=str(exc))
     return result
+
+
+def read_geometry(image_path):
+    """提取几何元数据，区分正下视 GSD 与倾斜投影；失败时返回 None。"""
+    try:
+        geometry = extract_image(str(image_path))
+        print(format_gsd_message(geometry))
+        return geometry
+    except Exception as exc:
+        print(f"警告：几何元数据处理失败，跳过地面测量，原因：{exc}")
+        return None
+
+
+def measure_merged(detections, image_shape, geometry):
+    """计算每个合并后区域的地面面积，结果写入 detection["measurement"]。"""
+    for det in detections:
+        try:
+            # 把局部掩码贴回整图尺寸。
+            mask = np.zeros(image_shape, dtype=bool)
+            x1, y1, x2, y2 = (int(v) for v in det["bbox"])
+            mask[y1:y2, x1:x2] = det["_mask"]
+            det["measurement"] = measure_mask(mask, geometry, det["contours"])
+        except Exception as exc:
+            print(f"警告：测量失败 class_id={det['class_id']}，原因：{exc}")
+    return detections
 
 
 def measurement_method(geometry):

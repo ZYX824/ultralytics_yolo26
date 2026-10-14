@@ -9,6 +9,7 @@ nominal scale assumes an 18 m footprint across 5184 pixels (not a 2592 crop).
 Outputs include report.jpg, report.txt, detections.json and a run-wide summary.csv.
 """
 
+# 这个脚本仅用于测试，统一的GSD
 import argparse
 import csv
 import json

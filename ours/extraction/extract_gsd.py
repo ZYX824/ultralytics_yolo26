@@ -223,6 +223,72 @@ def extract_image(path, **options):
     return metadata
 
 
+def format_gsd_message(geometry):
+    """根据几何估算结果，返回适合打印的中文提示。"""
+    status = geometry.get("status", "unknown")
+    pitch = number(geometry.get("gimbal_pitch_deg"))
+    roll = number(geometry.get("gimbal_roll_deg"))
+    height = number(geometry.get("height_agl_m"))
+    gsd = positive(geometry.get("gsd_m_per_pixel"))
+
+    pitch_text = (
+        f"{pitch:.2f}°" if pitch is not None else "未知"
+    )
+    height_text = (
+        f"{height:.2f}m" if height is not None else "未知"
+    )
+
+    # 先检查估算状态，不能只根据角度就宣布估算成功。
+    ready_statuses = {
+        "estimated_nadir",
+        "oblique_requires_projection",
+    }
+
+    if status not in ready_statuses:
+        reasons = {
+            "missing_center_range": "缺少有效的激光测距",
+            "unverified_center_range": "激光测距状态不是 Normal",
+            "missing_or_invalid_downward_pitch": "缺少有效的向下俯仰角",
+            "missing_camera_intrinsics": "缺少可用的相机内参",
+            "orientation_requires_normalization": "需要先处理图片方向",
+            "digital_zoom_requires_calibration": "数字变焦图片需要标定内参",
+            "missing_projection_attitude": "缺少横滚角或偏航角",
+        }
+
+        reason = reasons.get(status, "请检查几何参数")
+
+        return (
+            f"几何估算未就绪：status={status}，"
+            f"俯仰角={pitch_text}，"
+            f"原因：{reason}"
+        )
+
+    # 俯仰角 -90° 且横滚角为 0，才按严格正下视描述。
+    # 不把略微倾斜的照片强行归为全图统一 GSD。
+    is_nadir = (
+        pitch is not None
+        and roll is not None
+        and math.isclose(
+            pitch, -90.0, rel_tol=0.0, abs_tol=1e-9
+        )
+        and math.isclose(
+            roll, 0.0, rel_tol=0.0, abs_tol=1e-9
+        )
+    )
+
+    if is_nadir and status == "estimated_nadir" and gsd is not None:
+        return (
+            f"俯仰角={pitch_text}，"
+            f"GSD估算={gsd:.6f} m/像素"
+        )
+
+    # 倾斜拍摄或需要分方向计算时，使用地面投影。
+    return (
+        f"俯仰角={pitch_text}，"
+        f"后续测量采用动态 GSD（按像素位置进行地面投影），"
+    )
+
+
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, required=True, help="Original image or directory")

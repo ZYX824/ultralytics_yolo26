@@ -32,6 +32,8 @@ pip install uvicorn
 pip install python-multipart
 python -m pip install "hydra-core>=1.3.2"
 python -m pip install "tqdm>=4.66.1" "iopath>=0.1.10"
-# 服务启动命令：
-python -m ours.service.serve --host 0.0.0.0 --port 8000 --device cuda:0 --imgsz 1280 --conf 0.25
-# 后端调用该服务的注意事项：
+
+
+
+
+

@@ -222,7 +222,8 @@ fuzz-sources/
 fuzz-datasets/
 fuzz-models/
 
-/ours/sam2/
+
+/ours/service_haddle/.env
 
 # Local Git worktrees
 /.worktrees/

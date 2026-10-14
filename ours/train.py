@@ -12,17 +12,20 @@ from ultralytics import YOLO  # noqa: E402
 
 def main():
     datasets_root = Path(r"H:\datasets")
-    weight_path = ROOT / "ours" / "weights" / "yolo26n.pt"
+    weight_path = ROOT / "ours" / "weights" / "yolo26m.pt"
     project = ROOT / "ours" / "runs"
 
     if not weight_path.is_file():
         raise FileNotFoundError(f"未找到官方预训练权重：{weight_path}")
 
-    dataset_dirs = sorted(path for path in datasets_root.iterdir() if path.is_dir())
-    if len(dataset_dirs) != 6:
-        raise ValueError(f"预期有 6 个数据集，实际找到 {len(dataset_dirs)} 个：{datasets_root}")
+    # 本次只训练道路损伤数据集（N-RDD2024）。
+    dataset_names = ("N-RDD2024Road damage and defects",)
+    dataset_dirs = [datasets_root / name for name in dataset_names]
+    for dataset_dir in dataset_dirs:
+        if not dataset_dir.is_dir():
+            raise FileNotFoundError(f"未找到待训练数据集：{dataset_dir}")
 
-    # 先检查全部配置；滑坡检测数据位于 _yolo/detect 下。
+    # 检查数据集的 YOLO 检测配置。
     datasets = []
     for dataset_dir in dataset_dirs:
         yolo_dir = dataset_dir / "_yolo"
